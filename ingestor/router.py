@@ -1,6 +1,7 @@
 """Route raw CSV snapshots and maintain conservative source-ID mapping tables."""
 import csv
 import hashlib
+import io
 import os
 import re
 import shutil
@@ -81,7 +82,7 @@ def process_file(raw_file, dataset, archive_root, routed_root, schema_path):
             content = data.decode('utf-8-sig')
         except UnicodeDecodeError as exc:
             raise ValueError('Input is not UTF-8 CSV') from exc
-        reader = csv.DictReader(content.splitlines())
+        reader = csv.DictReader(io.StringIO(content, newline=''))
         headers = reader.fieldnames or []
         if not headers or len(set(headers)) != len(headers) or any(not h.strip() for h in headers):
             raise ValueError('Invalid CSV headers')
