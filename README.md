@@ -1,6 +1,6 @@
 # Data Golf ingestion
 
-Self-hosted n8n schedules a Python service that downloads Data Golf's documented CSV feeds and stores immutable UTC snapshots. This is a standalone ingestion starter, separate from the golf simulation database and CaddyStats repositories.
+Self-hosted n8n schedules a Python service that downloads Data Golf's documented CSV feeds and stores immutable UTC snapshots. Phase 2 routes raw files to `CSV Files/` and maintains source ID mappings in SQLite. This is a standalone ingestion project, separate from the golf simulation database and CaddyStats repositories.
 
 ## Quick start
 
@@ -8,7 +8,7 @@ Self-hosted n8n schedules a Python service that downloads Data Golf's documented
 2. Run `docker compose up -d` from this directory.
 3. Open `http://localhost:5678`, finish the n8n first-run setup, and import `n8n/datagolf_ingestion.json` via **Import from File**.
 4. Run the Manual Trigger and inspect the result. Then activate the workflow to schedule it daily at 06:00 America/Detroit.
-5. Check `data/player_list/YYYY/MM/DD/`, `data/pga_schedule/YYYY/MM/DD/`, and `data/ingestion_runs.jsonl`.
+5. Check `data/player_list/YYYY/MM/DD/`, `data/pga_schedule/YYYY/MM/DD/`, `CSV Files/players/`, `CSV Files/events/`, `data/mappings.sqlite3`, and `data/ingestion_runs.jsonl`.
 
 On a remote server, use an SSH tunnel or authenticated reverse proxy for the localhost-bound n8n UI. The ingestion service is reachable only inside Docker Compose.
 
@@ -17,6 +17,18 @@ On a remote server, use an SSH tunnel or authenticated reverse proxy for the loc
 Edit `config/datasets.json` and restart the ingestor (`docker compose restart ingestor`). Each entry needs `name` (lowercase letters, digits and underscores), documented API `path`, optional query `params`, and `enabled`. Query authentication and `file_format=csv` are added by the service. The sample includes the player list and PGA schedule feeds.
 
 The archive preserves Data Golf's raw CSV columns. `ingestion_runs.jsonl` records retrieval time, row count, file path and SHA-256 hash. Source observation dates, seasons and rounds must be interpreted from each feed's columns downstream; retrieval time is never substituted for an observation date. Identical responses are intentionally retained as distinct snapshots in this starter.
+
+## Phase 2: raw inbox, routing and mappings
+
+`data/` remains the raw landing area. After an API download, the service atomically publishes the raw CSV and immediately copies it to the configured destination. A background scanner runs every 15 seconds to retry unprocessed API files and handle manual uploads. Put a complete manual CSV at `data/inbox/<dataset_name>/<your_file>.csv` (for example, `data/inbox/player_list/players_2026-09-25.csv`). Upload via a temporary filename and rename to `.csv` when complete; the scanner also waits at least two seconds after the file's last modification. The file must have the headers configured for that dataset in `config/datasets.json`.
+
+Routing uses each dataset's `entity` setting. `player_list` goes to `CSV Files/players/`, and `pga_schedule` goes to `CSV Files/events/`. The copied filename contains the entity, dataset, raw filename and a short content hash. The original remains untouched in `data/`. `CSV Files/courses/` is ready for a course-specific dataset; the schedule also populates course mappings when it includes course IDs, without duplicating an event CSV into the courses folder.
+
+The mapping database is `data/mappings.sqlite3`, created from `config/schema.sql` on the first processed file. Its `player_mapping`, `course_mapping` and `event_mapping` tables each contain a local `id`, `name`, `datagolf_id`, nullable `pgatour_id`, source dataset, and first/last seen timestamps. Events also have `tour`, since provider event IDs can require tour context. `processed_files` tracks raw-to-copied paths; `unresolved_mapping` records source rows missing a name or Data Golf ID. Source IDs remain text, preserving leading zeroes. The processor never merges different IDs merely because the names match. A conflicting PGA TOUR ID fails processing, retains the raw file, and can be retried after correction.
+
+The `name_columns`, `datagolf_id_columns` and `pgatour_id_columns` lists in the dataset config are candidate source headers. **Inspect the first live feed's headers and adjust these lists before relying on mappings.** No PGA TOUR ID is invented when Data Golf omits it. Future PGA TOUR datasets can be reconciled using verified external IDs; name-only rows stay unresolved.
+
+SQLite is local to this deployment. Do not run multiple ingestor instances against the same archive. For downstream use, query the three mapping tables directly or export them explicitly; database and generated CSV files are excluded from Git.
 
 The service retries temporary failures, validates CSV shape and records failures without the authenticated URL. n8n receives an HTTP failure if any enabled feed fails. No webpage login or browser extraction is implemented yet; supply the exact pages and fields before adding a browser adapter.
 

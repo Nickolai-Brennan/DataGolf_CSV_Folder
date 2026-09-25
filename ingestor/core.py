@@ -17,7 +17,8 @@ HOST = 'https://feeds.datagolf.com'
 NAME = re.compile(r'^[a-z][a-z0-9_]*$')
 
 
-def ingest(config_path, output_root, api_key, opener=urlopen, now=None, sleep=time.sleep):
+def ingest(config_path, output_root, api_key, opener=urlopen, now=None, sleep=time.sleep,
+           routed_root=None, schema_path=None):
     if not api_key:
         raise ValueError('DATAGOLF_API_KEY is required')
     root = Path(output_root).resolve()
@@ -70,8 +71,15 @@ def ingest(config_path, output_root, api_key, opener=urlopen, now=None, sleep=ti
             directory.mkdir(parents=True, exist_ok=True)
             filename = f"{name}_{started.strftime('%Y%m%dT%H%M%S')}_{run_id[:8]}.csv"
             destination = directory / filename
-            with destination.open('xb') as handle:
+            temporary = destination.with_suffix('.csv.tmp')
+            with temporary.open('xb') as handle:
                 handle.write(payload)
+            os.replace(temporary, destination)
+            # Keep the raw copy even if routing fails so a later scan can retry.
+            if routed_root is not None:
+                from .router import process_file
+                routed = process_file(destination, entry, root, routed_root, schema_path)
+                record['routed_file'] = routed['output_path']
             record.update(status='success', row_count=len(rows) - 1, sha256=digest,
                           file_path=str(destination), bytes=len(payload))
         except Exception as exc:

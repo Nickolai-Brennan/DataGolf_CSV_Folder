@@ -24,6 +24,7 @@ services:
       - ./ingestor:/app/ingestor:ro
       - ./config:/app/config:ro
       - ./data:/archive
+      - ./CSV Files:/classified
     # Intentionally no host port: n8n reaches the service over Compose networking.
 volumes:
   n8n_data:
