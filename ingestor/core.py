@@ -32,6 +32,9 @@ def ingest(config_path, output_root, api_key, opener=urlopen, now=None, sleep=ti
     for entry in datasets:
         if not entry.get('enabled', False):
             continue
+        if entry.get('source_type', 'api') == 'manual':
+            # Manual datasets are handled by the archive watcher, not HTTP.
+            continue
         name = entry.get('name', '')
         path = entry.get('path', '')
         if not NAME.fullmatch(name) or not re.fullmatch(r'/[a-z0-9/-]+', path):

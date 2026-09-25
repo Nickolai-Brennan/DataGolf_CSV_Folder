@@ -23,6 +23,11 @@ EVENT = {
         {'entity': 'courses', 'required': False, 'name_columns': ['course_name'], 'datagolf_id_columns': ['course_id']}
     ]
 }
+COURSE = {
+    'name': 'course_catalog', 'entity': 'courses', 'source_type': 'manual', 'enabled': True,
+    'mappings': [{'entity': 'courses', 'name_columns': ['course_name'],
+                  'datagolf_id_columns': ['course_id']}]
+}
 
 
 class RouterTests(unittest.TestCase):
@@ -62,6 +67,15 @@ class RouterTests(unittest.TestCase):
                              [('Open', '12', 'pga')])
             self.assertEqual(db.execute('SELECT name,datagolf_id FROM course_mapping').fetchall(),
                              [('Old Course', '5')])
+
+    def test_manual_course_catalog_routes_to_courses_folder(self):
+        source = self.write_raw('course_catalog', 'courses.csv',
+                                'course_id,course_name\n05,Old Course\n')
+        result = process_file(source, COURSE, self.raw, self.routed, SCHEMA)
+        self.assertIn('/courses/', result['output_path'])
+        with sqlite3.connect(self.raw / 'mappings.sqlite3') as db:
+            self.assertEqual(db.execute('SELECT name,datagolf_id FROM course_mapping').fetchone(),
+                             ('Old Course', '05'))
 
     def test_name_without_id_is_unresolved_and_distinct_ids_do_not_merge(self):
         source = self.write_raw('player_list', 'upload.csv',

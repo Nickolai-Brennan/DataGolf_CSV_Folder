@@ -14,6 +14,7 @@
           "pgatour_id_columns": ["pga_tour_id", "pgatour_id", "pga_id"]
         }
       ],
+      "source_type": "api",
       "enabled": true
     },
     {
@@ -35,6 +36,22 @@
           "required": false,
           "name_columns": ["course_name", "course"],
           "datagolf_id_columns": ["course_id", "dg_course_id"],
+          "pgatour_id_columns": ["pga_tour_course_id", "pgatour_course_id"]
+        }
+      ],
+      "source_type": "api",
+      "enabled": true
+    },
+    {
+      "name": "course_catalog",
+      "source_type": "manual",
+      "entity": "courses",
+      "mappings": [
+        {
+          "entity": "courses",
+          "required": true,
+          "name_columns": ["course_name", "name"],
+          "datagolf_id_columns": ["course_id", "dg_course_id", "datagolf_id"],
           "pgatour_id_columns": ["pga_tour_course_id", "pgatour_course_id"]
         }
       ],
