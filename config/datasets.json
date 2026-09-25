@@ -35,11 +35,45 @@
           "entity": "courses",
           "required": false,
           "name_columns": ["course_name", "course"],
-          "datagolf_id_columns": ["course_id", "dg_course_id"],
+          "datagolf_id_columns": ["course_key", "course_id", "dg_course_id"],
           "pgatour_id_columns": ["pga_tour_course_id", "pgatour_course_id"]
         }
       ],
       "source_type": "api",
+      "enabled": true
+    },
+    {
+      "name": "historical_event_stats_index",
+      "path": "/historical-event-data/event-list",
+      "params": {"tour": "pga"},
+      "source_type": "api",
+      "entity": "events",
+      "event_index_kind": "event_stats",
+      "mappings": [
+        {
+          "entity": "events",
+          "tour": "pga",
+          "name_columns": ["event_name"],
+          "datagolf_id_columns": ["event_id"]
+        }
+      ],
+      "enabled": true
+    },
+    {
+      "name": "historical_rounds_index",
+      "path": "/historical-raw-data/event-list",
+      "params": {"tour": "pga"},
+      "source_type": "api",
+      "entity": "events",
+      "event_index_kind": "rounds",
+      "mappings": [
+        {
+          "entity": "events",
+          "tour": "pga",
+          "name_columns": ["event_name"],
+          "datagolf_id_columns": ["event_id"]
+        }
+      ],
       "enabled": true
     },
     {

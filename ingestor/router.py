@@ -58,6 +58,40 @@ def _update_mapping(db, mapping, row, raw_path, row_number, dataset, timestamp):
     return True
 
 
+def _update_event_lookup(db, dataset, row, row_number, timestamp):
+    """Track which endpoint family lists each tournament edition."""
+    kind = dataset.get('event_index_kind')
+    if kind not in ('rounds', 'event_stats'):
+        return
+    tour = (row.get('tour') or '').strip().lower()
+    event_id = (row.get('event_id') or '').strip()
+    name = (row.get('event_name') or '').strip()
+    year_text = (row.get('calendar_year') or '').strip()
+    if not (tour and event_id and name and year_text.isdigit() and len(year_text) == 4):
+        raise ValueError(f'Invalid event lookup row {row_number}')
+    year = int(year_text)
+    if not 1900 <= year <= 2100:
+        raise ValueError(f'Invalid calendar year at row {row_number}')
+    if tour != dataset.get('params', {}).get('tour', tour):
+        raise ValueError(f'Unexpected tour at row {row_number}')
+    db.execute('''INSERT INTO event_lookup
+        (tour, event_id, calendar_year, event_name, event_date,
+         rounds_available, event_stats_available, sg_categories, traditional_stats, last_seen_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (tour, event_id, calendar_year) DO UPDATE SET
+            event_name = excluded.event_name,
+            event_date = COALESCE(excluded.event_date, event_lookup.event_date),
+            rounds_available = MAX(event_lookup.rounds_available, excluded.rounds_available),
+            event_stats_available = MAX(event_lookup.event_stats_available, excluded.event_stats_available),
+            sg_categories = COALESCE(excluded.sg_categories, event_lookup.sg_categories),
+            traditional_stats = COALESCE(excluded.traditional_stats, event_lookup.traditional_stats),
+            last_seen_at = excluded.last_seen_at''',
+        (tour, event_id, year, name, (row.get('date') or '').strip() or None,
+         int(kind == 'rounds'), int(kind == 'event_stats'),
+         (row.get('sg_categories') or '').strip() or None,
+         (row.get('traditional_stats') or '').strip() or None, timestamp))
+
+
 def process_file(raw_file, dataset, archive_root, routed_root, schema_path):
     """Copy one stable raw CSV; commit file registration and mappings together.
 
@@ -97,6 +131,8 @@ def process_file(raw_file, dataset, archive_root, routed_root, schema_path):
                 raise ValueError(f"Missing required {mapping['entity']} mapping columns")
             if available:
                 active_mappings.append(mapping)
+        if dataset.get('event_index_kind') and not {'tour', 'event_id', 'event_name', 'calendar_year'}.issubset(headers):
+            raise ValueError('Missing required event lookup columns')
         target = target_root / entity
         target.mkdir(parents=True, exist_ok=True)
         # Existing ingestion names are timestamped; manual files gain a UTC timestamp.
@@ -129,6 +165,7 @@ def process_file(raw_file, dataset, archive_root, routed_root, schema_path):
                     for mapping in active_mappings:
                         if _update_mapping(db, mapping, row, str(raw), row_number, dataset['name'], timestamp):
                             counts[mapping['entity']] += 1
+                    _update_event_lookup(db, dataset, row, row_number, timestamp)
                 os.replace(temporary, output)
                 db.execute('''INSERT INTO processed_files
                     (raw_path, dataset, entity, sha256, output_path, row_count, processed_at)

@@ -26,7 +26,27 @@ Routing uses each dataset's `entity` setting. `player_list` goes to `CSV Files/p
 
 The mapping database is `data/mappings.sqlite3`, created from `config/schema.sql` on the first processed file. Its `player_mapping`, `course_mapping` and `event_mapping` tables each contain a local `id`, `name`, `datagolf_id`, nullable `pgatour_id`, source dataset, and first/last seen timestamps. Events also have `tour`, since provider event IDs can require tour context. `processed_files` tracks raw-to-copied paths; `unresolved_mapping` records source rows missing a name or Data Golf ID. Source IDs remain text, preserving leading zeroes. The processor never merges different IDs merely because the names match. A conflicting PGA TOUR ID fails processing, retains the raw file, and can be retried after correction.
 
-The `name_columns`, `datagolf_id_columns` and `pgatour_id_columns` lists in the dataset config are candidate source headers. **Inspect the first live feed's headers and adjust these lists before relying on mappings.** No PGA TOUR ID is invented when Data Golf omits it. Future PGA TOUR datasets can be reconciled using verified external IDs; name-only rows stay unresolved.
+The `name_columns`, `datagolf_id_columns` and `pgatour_id_columns` lists in the dataset config are candidate source headers. Live CSV headers were checked for the player list, PGA schedule and two event indexes in September 2026; check again if upstream schemas change. The schedule uses `course_key` as the Data Golf course ID. No PGA TOUR ID is invented when Data Golf omits it. Future PGA TOUR datasets can be reconciled using verified external IDs; name-only rows stay unresolved.
+
+## Historical event lookup
+
+Two PGA event indexes are downloaded into `data/` and copied to `CSV Files/events/`:
+
+| Dataset | Event list endpoint | Used to look up |
+| --- | --- | --- |
+| `historical_event_stats_index` | `/historical-event-data/event-list` | `/historical-event-data/events` |
+| `historical_rounds_index` | `/historical-raw-data/event-list` | `/historical-raw-data/rounds` |
+
+The indexes contain `tour`, `calendar_year`, `date`, `event_name`, and `event_id`. The rounds index also reports `sg_categories` and `traditional_stats`. Every index row updates `event_lookup` in `data/mappings.sqlite3`; its key is `(tour, event_id, calendar_year)`, since a tournament ID can recur in later calendar years. The two endpoint families have different coverage. On September 25, 2026 the first returned 84 PGA entries for 2025–2026, while the second returned 1,086 PGA entries over a longer history. These are live observations and may change.
+
+After a run, look up an event and its parameterized endpoint without printing your API key:
+
+```bash
+python3 -m ingestor.lookup --year 2026 --tour pga --event-id 60 --kind rounds
+python3 -m ingestor.lookup --year 2026 --tour pga --kind event_stats --limit 10
+```
+
+The returned `api_path` includes `tour`, `event_id`, `year` (calendar year), and `file_format=csv`. The ingestor adds the key only at request time. **Rounds are not downloaded automatically.** The supplied key successfully retrieved both event lists but a test request to `/historical-raw-data/rounds` returned HTTP 403 with a historical-data subscription message. Access must be enabled before implementing or running a rounds downloader. The event stats data endpoint is likewise only a lookup target here, not an automatic download.
 
 SQLite is local to this deployment. Do not run multiple ingestor instances against the same archive. For downstream use, query the three mapping tables directly or export them explicitly; database and generated CSV files are excluded from Git.
 

@@ -51,3 +51,20 @@ CREATE TABLE IF NOT EXISTS unresolved_mapping (
     reason TEXT NOT NULL,
     PRIMARY KEY (raw_path, table_name, row_number)
 );
+
+-- One row per tournament edition. A stable event ID can appear in several years.
+CREATE TABLE IF NOT EXISTS event_lookup (
+    tour TEXT NOT NULL,
+    event_id TEXT NOT NULL,
+    calendar_year INTEGER NOT NULL,
+    event_name TEXT NOT NULL,
+    event_date TEXT,
+    rounds_available INTEGER NOT NULL DEFAULT 0 CHECK (rounds_available IN (0, 1)),
+    event_stats_available INTEGER NOT NULL DEFAULT 0 CHECK (event_stats_available IN (0, 1)),
+    sg_categories TEXT,
+    traditional_stats TEXT,
+    last_seen_at TEXT NOT NULL,
+    PRIMARY KEY (tour, event_id, calendar_year)
+);
+
+CREATE INDEX IF NOT EXISTS event_lookup_year_idx ON event_lookup (tour, calendar_year, event_date);

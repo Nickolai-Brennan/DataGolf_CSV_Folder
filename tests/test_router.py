@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from ingestor.core import ingest
+from ingestor.lookup import lookup
 from ingestor.router import process_file, process_pending
 
 SCHEMA = Path(__file__).resolve().parents[1] / 'config' / 'schema.sql'
@@ -27,6 +28,14 @@ COURSE = {
     'name': 'course_catalog', 'entity': 'courses', 'source_type': 'manual', 'enabled': True,
     'mappings': [{'entity': 'courses', 'name_columns': ['course_name'],
                   'datagolf_id_columns': ['course_id']}]
+}
+EVENT_STATS_INDEX = {
+    **EVENT, 'name': 'historical_event_stats_index', 'event_index_kind': 'event_stats',
+    'params': {'tour': 'pga'}
+}
+ROUNDS_INDEX = {
+    **EVENT, 'name': 'historical_rounds_index', 'event_index_kind': 'rounds',
+    'params': {'tour': 'pga'}
 }
 
 
@@ -76,6 +85,26 @@ class RouterTests(unittest.TestCase):
         with sqlite3.connect(self.raw / 'mappings.sqlite3') as db:
             self.assertEqual(db.execute('SELECT name,datagolf_id FROM course_mapping').fetchone(),
                              ('Old Course', '05'))
+
+    def test_index_tracks_event_years_and_source_coverage(self):
+        stats = self.write_raw('historical_event_stats_index', 'stats.csv',
+                               'tour,calendar_year,date,event_name,event_id\n'
+                               'pga,2026,2026-08-30,TOUR Championship,60\n')
+        rounds = self.write_raw('historical_rounds_index', 'rounds.csv',
+                                'tour,calendar_year,date,event_name,event_id,sg_categories,traditional_stats\n'
+                                'pga,2026,2026-08-30,TOUR Championship,60,yes,yes\n'
+                                'pga,2025,2025-08-24,TOUR Championship,60,yes,yes\n')
+        process_file(stats, EVENT_STATS_INDEX, self.raw, self.routed, SCHEMA)
+        process_file(rounds, ROUNDS_INDEX, self.raw, self.routed, SCHEMA)
+        with sqlite3.connect(self.raw / 'mappings.sqlite3') as db:
+            self.assertEqual(db.execute('SELECT COUNT(*) FROM event_mapping').fetchone()[0], 1)
+            self.assertEqual(db.execute('''SELECT calendar_year,rounds_available,event_stats_available
+                                          FROM event_lookup ORDER BY calendar_year''').fetchall(),
+                             [(2025, 1, 0), (2026, 1, 1)])
+        result = lookup(self.raw / 'mappings.sqlite3', 'pga', 2026, event_id='60')
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]['api_path'],
+                         '/historical-raw-data/rounds?tour=pga&event_id=60&year=2026&file_format=csv')
 
     def test_name_without_id_is_unresolved_and_distinct_ids_do_not_merge(self):
         source = self.write_raw('player_list', 'upload.csv',
