@@ -4,12 +4,91 @@
       "name": "player_list",
       "path": "/get-player-list",
       "params": {},
+      "entity": "players",
+      "mappings": [
+        {
+          "entity": "players",
+          "required": true,
+          "name_columns": ["player_name", "name"],
+          "datagolf_id_columns": ["dg_id", "datagolf_id"],
+          "pgatour_id_columns": ["pga_tour_id", "pgatour_id", "pga_id"]
+        }
+      ],
+      "source_type": "api",
       "enabled": true
     },
     {
       "name": "pga_schedule",
       "path": "/get-schedule",
       "params": {"tour": "pga", "upcoming_only": "no"},
+      "entity": "events",
+      "mappings": [
+        {
+          "entity": "events",
+          "tour": "pga",
+          "required": true,
+          "name_columns": ["event_name", "tournament_name", "name"],
+          "datagolf_id_columns": ["event_id", "dg_event_id"],
+          "pgatour_id_columns": ["pga_tour_event_id", "pgatour_event_id"]
+        },
+        {
+          "entity": "courses",
+          "required": false,
+          "name_columns": ["course_name", "course"],
+          "datagolf_id_columns": ["course_key", "course_id", "dg_course_id"],
+          "pgatour_id_columns": ["pga_tour_course_id", "pgatour_course_id"]
+        }
+      ],
+      "source_type": "api",
+      "enabled": true
+    },
+    {
+      "name": "historical_event_stats_index",
+      "path": "/historical-event-data/event-list",
+      "params": {"tour": "pga"},
+      "source_type": "api",
+      "entity": "events",
+      "event_index_kind": "event_stats",
+      "mappings": [
+        {
+          "entity": "events",
+          "tour": "pga",
+          "name_columns": ["event_name"],
+          "datagolf_id_columns": ["event_id"]
+        }
+      ],
+      "enabled": true
+    },
+    {
+      "name": "historical_rounds_index",
+      "path": "/historical-raw-data/event-list",
+      "params": {"tour": "pga"},
+      "source_type": "api",
+      "entity": "events",
+      "event_index_kind": "rounds",
+      "mappings": [
+        {
+          "entity": "events",
+          "tour": "pga",
+          "name_columns": ["event_name"],
+          "datagolf_id_columns": ["event_id"]
+        }
+      ],
+      "enabled": true
+    },
+    {
+      "name": "course_catalog",
+      "source_type": "manual",
+      "entity": "courses",
+      "mappings": [
+        {
+          "entity": "courses",
+          "required": true,
+          "name_columns": ["course_name", "name"],
+          "datagolf_id_columns": ["course_id", "dg_course_id", "datagolf_id"],
+          "pgatour_id_columns": ["pga_tour_course_id", "pgatour_course_id"]
+        }
+      ],
       "enabled": true
     }
   ]

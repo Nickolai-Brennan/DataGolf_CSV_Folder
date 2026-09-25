@@ -3,5 +3,7 @@
 !.env.example
 data/*
 !data/.gitkeep
+CSV Files/**/*.csv
+CSV Files/**/*.tmp
 __pycache__/
 *.pyc
