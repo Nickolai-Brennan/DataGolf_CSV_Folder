@@ -23,7 +23,7 @@ The service retries temporary failures, validates CSV shape and records failures
 ## Test
 
 ```bash
-cd datagolf-ingestion
+cd DataGolf_CSV_Folder
 python3 -m unittest discover -s tests -v
 python3 -m json.tool n8n/datagolf_ingestion.json >/dev/null
 docker compose config --quiet
