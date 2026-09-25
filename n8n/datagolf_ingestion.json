@@ -1,0 +1,14 @@
+{
+  "name": "Data Golf CSV archive",
+  "nodes": [
+    {"parameters": {}, "id": "5908582e-2cd5-4a8f-96bb-8d4d01d04b71", "name": "Manual Trigger", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [160, 160]},
+    {"parameters": {"rule": {"interval": [{"field": "days", "daysInterval": 1, "triggerAtHour": 6}]}}, "id": "45ec4759-6b24-4fbe-829f-36acdef533b3", "name": "Daily at 06:00", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [160, 360]},
+    {"parameters": {"method": "POST", "url": "http://ingestor:8080/run", "options": {"timeout": 180000}}, "id": "2c397664-2997-4933-88a5-56808673d55e", "name": "Run Data Golf ingestion", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [440, 260]}
+  ],
+  "connections": {
+    "Manual Trigger": {"main": [[{"node": "Run Data Golf ingestion", "type": "main", "index": 0}]]},
+    "Daily at 06:00": {"main": [[{"node": "Run Data Golf ingestion", "type": "main", "index": 0}]]}
+  },
+  "settings": {"timezone": "America/Detroit", "executionOrder": "v1"},
+  "active": false
+}

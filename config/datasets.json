@@ -1,0 +1,16 @@
+{
+  "datasets": [
+    {
+      "name": "player_list",
+      "path": "/get-player-list",
+      "params": {},
+      "enabled": true
+    },
+    {
+      "name": "pga_schedule",
+      "path": "/get-schedule",
+      "params": {"tour": "pga", "upcoming_only": "no"},
+      "enabled": true
+    }
+  ]
+}

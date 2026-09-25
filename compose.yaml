@@ -1,0 +1,29 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:stable
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"
+    environment:
+      GENERIC_TIMEZONE: America/Detroit
+      TZ: America/Detroit
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Set N8N_ENCRYPTION_KEY in .env}
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      - ingestor
+  ingestor:
+    image: python:3.12-slim
+    restart: unless-stopped
+    working_dir: /app
+    command: python -m ingestor.server
+    environment:
+      DATAGOLF_API_KEY: ${DATAGOLF_API_KEY:?Set DATAGOLF_API_KEY in .env}
+      PYTHONDONTWRITEBYTECODE: "1"
+    volumes:
+      - ./ingestor:/app/ingestor:ro
+      - ./config:/app/config:ro
+      - ./data:/archive
+    # Intentionally no host port: n8n reaches the service over Compose networking.
+volumes:
+  n8n_data:
